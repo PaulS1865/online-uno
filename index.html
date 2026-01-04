@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>UNO Online</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="menu">
+  <button onclick="create()">Raum erstellen</button>
+  <input id="code" placeholder="Raumcode">
+  <button onclick="join()">Beitreten</button>
+</div>
+
+<div id="game" hidden>
+  <h2 id="room"></h2>
+  <p id="turn"></p>
+  <div id="hand"></div>
+  <button onclick="ready()">READY</button>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
