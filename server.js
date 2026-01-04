@@ -1,9 +1,12 @@
 const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
+const path = require("path");
 
 const app = express();
-app.use(express.static("public"));
+
+// Static files im selben Ordner
+app.use(express.static(path.join(__dirname)));
 
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
@@ -37,14 +40,12 @@ wss.on("connection", ws=>{
   ws.on("message", msg=>{
     const data = JSON.parse(msg);
 
-    // Raum erstellen
     if(data.type==="create"){
       const code = Math.random().toString(36).substring(2,6).toUpperCase();
       rooms[code] = {players:[], deck:[], discard:[], turn:0, direction:1, started:false};
       ws.send(JSON.stringify({type:"room", code}));
     }
 
-    // Raum beitreten
     if(data.type==="join"){
       const room = rooms[data.code];
       if(!room || room.players.length>=4) return;
@@ -55,7 +56,6 @@ wss.on("connection", ws=>{
       broadcast(room, {type:"players", count: room.players.length});
     }
 
-    // Ready-Status
     if(data.type==="ready"){
       const room = rooms[ws.room];
       room.players[ws.playerIndex].ready=true;
@@ -75,7 +75,6 @@ wss.on("connection", ws=>{
       }
     }
 
-    // Karte spielen
     if(data.type==="play"){
       const room = rooms[ws.room];
       const player = room.players[ws.playerIndex];
