@@ -1,25 +1,127 @@
 <!DOCTYPE html>
-<html>
+<html lang="de">
 <head>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>UNO Online</title>
-<link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<title>Idle Oil Rush</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- SUPABASE CDN -->
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+<style>
+body{font-family:Arial;background:#f2f2f2;padding:15px}
+.card{background:#fff;padding:15px;margin-bottom:10px;border-radius:10px}
+button{padding:8px 12px;margin:4px}
+</style>
 </head>
+
 <body>
 
-<div id="menu">
-  <button onclick="create()">Raum erstellen</button>
-  <input id="code" placeholder="Raumcode">
-  <button onclick="join()">Beitreten</button>
+<h1>🛢️ Idle Oil Rush</h1>
+<button onclick="login()">Login mit Google</button>
+
+<div id="game" style="display:none">
+  <h2>🌍 Welten</h2>
+  <div id="worlds"></div>
 </div>
 
-<div id="game" hidden>
-  <h2 id="room"></h2>
-  <p id="turn"></p>
-  <div id="hand"></div>
-  <button onclick="ready()">READY</button>
-</div>
+<script>
+// ✅ RICHTIGER CLIENT (wichtig!)
+const supabaseClient = supabase.createClient(
+  "https://wxlmxuranshgsarmtail.supabase.co",
+  "sb_publishable_ChI55mbh48B05Mcd9yUqVg_sh9_MsDn"
+)
 
-<script src="game.js"></script>
+let user = null
+
+// ✅ GLOBAL DEFINIERT
+window.login = async function () {
+  await supabaseClient.auth.signInWithOAuth({
+    provider: "google"
+  })
+}
+
+// ✅ LOGIN CALLBACK
+supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+  if (session) {
+    user = session.user
+    document.getElementById("game").style.display = "block"
+    await call("init")
+    loadWorlds()
+    setInterval(tickAll, 5000)
+  }
+})
+
+// BACKEND CALL
+async function call(action, extra = {}) {
+  return supabaseClient.functions.invoke("game", {
+    body: { action, playerId: user.id, ...extra }
+  })
+}
+
+// IDLE TICK
+async function tickAll() {
+  const { data } = await supabaseClient
+    .from("player_worlds")
+    .select("world_id")
+    .eq("player_id", user.id)
+
+  for (const w of data) {
+    await call("tick", { worldId: w.world_id })
+  }
+
+  loadWorlds()
+}
+
+// WELTEN LADEN
+async function loadWorlds() {
+  const { data: owned } = await supabaseClient
+    .from("player_worlds")
+    .select("*, world(*)")
+    .eq("player_id", user.id)
+
+  const { data: all } = await supabaseClient
+    .from("world")
+    .select()
+
+  const container = document.getElementById("worlds")
+  container.innerHTML = ""
+
+  const ownedIds = owned.map(w => w.world_id)
+
+  owned.forEach(w => {
+    const d = document.createElement("div")
+    d.className = "card"
+    d.innerHTML = `
+      <b>${w.world.name}</b><br>
+      Öl: ${Math.floor(w.oil)} |
+      Geld: ${Math.floor(w.money)} |
+      Prestige: ${w.prestige}<br>
+      <button onclick="upgrade(${w.world_id})">Upgrade</button>
+      <button onclick="sell(${w.world_id})">Verkaufen</button>
+      <button onclick="prestige(${w.world_id})">Prestige</button>
+    `
+    container.appendChild(d)
+  })
+
+  all.filter(w => !ownedIds.includes(w.id)).forEach(w => {
+    const d = document.createElement("div")
+    d.className = "card"
+    d.innerHTML = `
+      <b>${w.name}</b><br>
+      Preis: ${w.base_price}<br>
+      <button onclick="buyWorld(${w.id})">Kaufen</button>
+    `
+    container.appendChild(d)
+  })
+}
+
+// BUTTON FUNKTIONEN (GLOBAL!)
+window.upgrade  = id => call("upgrade",  { worldId:id })
+window.sell     = id => call("sell",     { worldId:id })
+window.prestige = id => call("prestige", { worldId:id })
+window.buyWorld = id => call("buyWorld", { worldId:id })
+</script>
+
 </body>
 </html>
